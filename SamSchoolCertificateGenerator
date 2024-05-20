@@ -1,0 +1,145 @@
+from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver import DesiredCapabilities
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver import Chrome
+from selenium.webdriver.chrome.service import Service as ChromeService
+from helium import set_driver, write, S
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+import time
+
+# Credentials
+username = "username"
+password = "password"
+
+# Browser options
+default_options = [
+    "--disable-extensions",
+    "--disable-user-media-security=true",
+    "--allow-file-access-from-files",
+    "--use-fake-device-for-media-stream",
+    "--use-fake-ui-for-media-stream",
+    "--disable-popup-blocking",
+    "--disable-infobars",
+    "--enable-usermedia-screen-capturing",
+    "--disable-dev-shm-usage",
+    "--no-sandbox",
+    "--auto-select-desktop-capture-source=Screen 1",
+    "--disable-blink-features=AutomationControlled"
+]
+headless_options = ["--headless", "--use-system-clipboard", "--window-size=1920x1080"]
+
+def browser_options(chrome_type):
+  webdriver_options = webdriver.ChromeOptions()
+  notification_opt = {"profile.default_content_setting_values.notifications": 1}
+  webdriver_options.add_experimental_option("prefs", notification_opt)
+  var = default_options + headless_options if chrome_type == "headless" else default_options
+    for d_o in var:
+        webdriver_options.add_argument(d_o)
+    return webdriver_options
+
+def get_webdriver_instance(browser=None):
+  base_url = "https://accounts.teachmint.com/"
+  caps = DesiredCapabilities().CHROME
+  caps["pageLoadStrategy"] = "normal"
+  driver = Chrome(service=ChromeService(ChromeDriverManager().install()), options=browser_options(browser))
+  driver.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
+  driver.maximize_window()
+  driver.get(base_url)
+  set_driver(driver)
+  return driver
+
+def enter_phone_number_otp(driver, creds):
+  driver.find_element(By.XPATH, "//input[@type='text']").send_keys(creds[0])
+  time.sleep(1)
+  print(f"entered user phone number {creds[0]}")
+  driver.find_element(By.ID, "send-otp-btn-id").click()
+  WebDriverWait(driver, 30).until(EC.invisibility_of_element((By.CSS_SELECTOR, "loader")))
+  WebDriverWait(driver, 30).until(EC.invisibility_of_element((By.CLASS_NAME, "loader")))
+  time.sleep(1)
+  _input_otp_field = "//input[@data-group-idx='{}']"
+  for i, otp in enumerate(creds[1]):
+      otp_field = _input_otp_field.format(str(i))
+      write(otp, into=S(otp_field))
+      print(f"entered otp {creds[1]}")
+  time.sleep(1)
+  driver.find_element(By.ID, "submit-otp-btn-id").click()
+  time.sleep(2)
+  WebDriverWait(driver, 30).until(EC.invisibility_of_element((By.CSS_SELECTOR, "loader")))
+  WebDriverWait(driver, 30).until(EC.invisibility_of_element((By.CLASS_NAME, "loader")))
+  time.sleep(1)
+  print("successfully entered user phone number and otp")
+
+  def login(admin_credentials=["0000020232", "120992", "@Automation-2"], account_name="@Automation-2"):
+    driver = get_webdriver_instance()
+    WebDriverWait(driver, 30).until(EC.invisibility_of_element((By.CSS_SELECTOR, "loader")))
+    WebDriverWait(driver, 30).until(EC.invisibility_of_element((By.CLASS_NAME, "loader")))
+    time.sleep(1)
+    enter_phone_number_otp(driver, admin_credentials)
+    user_name = f"//div[@class='profile-user-name']/..//div[text()='{account_name}']"
+    WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.XPATH, user_name)))
+    driver.find_element(By.XPATH, user_name).click()
+    dashboard_xpath = "//a[text()='Dashboard']"
+    WebDriverWait(driver, 100).until(EC.presence_of_element_located((By.XPATH, dashboard_xpath)))
+    time.sleep(20)
+    driver.refresh()
+    time.sleep(20)
+    return driver
+
+def generate_school_leaving_certificate(driver, student_name):
+  # Navigate to Certificates
+      certificates_xpath = "//a[text()='Certificates']"
+      WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.XPATH, certificates_xpath)))
+      driver.find_element(By.XPATH, certificates_xpath).click()
+
+  # Select Certificate Type
+      certificate_type_dropdown_xpath = "//select[@id='certificateType']"
+      WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, certificate_type_dropdown_xpath)))
+      select = Select(driver.find_element(By.XPATH, certificate_type_dropdown_xpath))
+      select.select_by_visible_text("School Leaving Certificate")
+
+  # Search and Select the Student
+      search_student_xpath = "//input[@id='searchStudent']"
+      WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, search_student_xpath)))
+      driver.find_element(By.XPATH, search_student_xpath).send_keys(student_name)
+      time.sleep(1)  # Wait for search results to load
+      
+      student_select_xpath = f"//div[text()='{student_name}']"
+      WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.XPATH, student_select_xpath)))
+      driver.find_element(By.XPATH, student_select_xpath).click()
+
+  # Click on Generate
+      generate_button_xpath = "//button[@id='generateCertificate']"
+      WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.XPATH, generate_button_xpath)))
+      driver.find_element(By.XPATH, generate_button_xpath).click()
+
+  # Update Remarks
+      remarks_textarea_xpath = "//textarea[@id='remarks']"
+      WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, remarks_textarea_xpath)))
+      driver.find_element(By.XPATH, remarks_textarea_xpath).send_keys("This is a sample remark for the school leaving certificate.")
+
+  # Generate and Download
+      download_button_xpath = "//button[@id='downloadCertificate']"
+      WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.XPATH, download_button_xpath)))
+      driver.find_element(By.XPATH, download_button_xpath).click()
+      time.sleep(5)  # Wait for the download to complete
+
+  # Validate the History of Certificates
+      history_tab_xpath = "//a[text()='History']"
+      WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.XPATH, history_tab_xpath)))
+      driver.find_element(By.XPATH, history_tab_xpath).click()
+      certificate_entry_xpath = f"//td[contains(text(), '{student_name}')]/..//td[contains(text(), 'School Leaving Certificate')]"
+      WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, certificate_entry_xpath)))
+      print(f"Certificate history validated for student: {student_name}")
+
+def main():
+  driver = login()
+  generate_school_leaving_certificate(driver, "Sam")
+  driver.quit()
+
+if __name__ == "__main__":
+  print("start")
+  main()
+  print("end")
