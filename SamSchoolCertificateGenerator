@@ -6,11 +6,15 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.service import Service as ChromeService
 from helium import set_driver, write, S
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import *
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.ui import WebDriverWait
 import time
 
-# Credentials
+# Login Credentials
 username = "username"
 password = "password"
 
@@ -87,6 +91,8 @@ def enter_phone_number_otp(driver, creds):
     driver.refresh()
     time.sleep(20)
     return driver
+
+#Please find my automation code here for School Leaving Certificate Generator for Sam
 
 def generate_school_leaving_certificate(driver, student_name):
   # Navigate to Certificates
